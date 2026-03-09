@@ -1,0 +1,5 @@
+version=4
+opts="searchmode=plain,pgpmode=auto, \
+    uversionmangle=s/(\d)[_\.\-\+]?((RC|rc|pre|dev|beta|alpha|a|b)\d*)$/$1~$2/" \
+    https://api.github.com/repos/libusb/libusb/releases?per_page=50 \
+    https://github.com/libusb/libusb/releases/download/[^/]+/libusb-@ANY_VERSION@@ARCHIVE_EXT@

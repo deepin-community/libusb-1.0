@@ -1,0 +1,20 @@
+#!/bin/sh
+
+set -e
+
+SOURCE_DIR="$(pwd)"
+if [ -z "$AUTOPKGTEST_TMP" ]; then
+   BUILD_DIR=''
+   cleanup() {
+      if [ -n "$BUILD_DIR" ]; then cd /; rm -rf -- "$BUILD_DIR"; fi
+      BUILD_DIR=''
+   }
+   trap 'cleanup' 0 HUP INT QUIT ILL ABRT FPE SEGV PIPE TERM
+   BUILD_DIR="$(mktemp -d)"
+else
+   BUILD_DIR="$AUTOPKGTEST_TMP"
+fi
+
+cd $BUILD_DIR
+$SOURCE_DIR/configure --enable-tests-build
+exec make check LDADD=-lusb-1.0 

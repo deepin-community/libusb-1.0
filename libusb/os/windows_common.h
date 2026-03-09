@@ -52,6 +52,8 @@
 #define _strdup strdup
 // _beginthreadex is MSVCRT => unavailable for cygwin. Fallback to using CreateThread
 #define _beginthreadex(a, b, c, d, e, f) CreateThread(a, b, (LPTHREAD_START_ROUTINE)c, d, e, (LPDWORD)f)
+#else
+#include <process.h>
 #endif
 
 #define safe_free(p) do {if (p != NULL) {free((void *)p); p = NULL;}} while (0)
@@ -129,6 +131,7 @@ typedef LONG USBD_STATUS;
 
 #define USBD_SUCCESS(Status)		((USBD_STATUS)(Status) >= 0)
 
+#define USBD_STATUS_STALL_PID		((USBD_STATUS)0xC0000004L)
 #define USBD_STATUS_ENDPOINT_HALTED	((USBD_STATUS)0xC0000030L)
 #define USBD_STATUS_TIMEOUT		((USBD_STATUS)0xC0006000L)
 #define USBD_STATUS_DEVICE_GONE		((USBD_STATUS)0xC0007000L)
@@ -151,7 +154,8 @@ enum windows_version {
 	WINDOWS_8,
 	WINDOWS_8_1,
 	WINDOWS_10,
-	WINDOWS_11_OR_LATER
+	WINDOWS_11,
+	WINDOWS_12_OR_LATER
 };
 
 extern enum windows_version windows_version;
@@ -254,14 +258,28 @@ struct winusb_device_priv {
 		int current_altsetting;
 		bool restricted_functionality;  // indicates if the interface functionality is restricted
 						// by Windows (eg. HID keyboards or mice cannot do R/W)
+		uint8_t num_associated_interfaces; // If non-zero, the interface is part of a grouped
+		                                   // set of associated interfaces (defined by an IAD)
+						   // and this is the number of interfaces within the
+						   // associated group (bInterfaceCount in IAD).
+		uint8_t first_associated_interface; // For associated interfaces, this is the index of
+						    // the first interface (bFirstInterface in IAD) for
+		                                    // the grouped set of associated interfaces.
 	} usb_interface[USB_MAXINTERFACES];
 	struct hid_device_priv *hid;
 	PUSB_CONFIGURATION_DESCRIPTOR *config_descriptor; // list of pointers to the cached config descriptors
+	GUID class_guid; // checked for change during re-enumeration
 };
 
 struct usbdk_device_handle_priv {
 	// Not currently used
 	char dummy;
+};
+ 
+enum WINUSB_ZLP {
+	WINUSB_ZLP_UNSET = 0,
+	WINUSB_ZLP_OFF = 1,
+	WINUSB_ZLP_ON = 2
 };
 
 struct winusb_device_handle_priv {
@@ -269,6 +287,7 @@ struct winusb_device_handle_priv {
 	struct {
 		HANDLE dev_handle; // WinUSB needs an extra handle for the file
 		HANDLE api_handle; // used by the API to communicate with the device
+		uint8_t zlp[USB_MAXENDPOINTS]; // Current per-endpoint SHORT_PACKET_TERMINATE status (enum WINUSB_ZLP)
 	} interface_handle[USB_MAXINTERFACES];
 	int autoclaim_count[USB_MAXINTERFACES]; // For auto-release
 };
@@ -336,19 +355,35 @@ union windows_device_priv {
 	struct winusb_device_priv winusb_priv;
 };
 
-union windows_device_handle_priv {
-	struct usbdk_device_handle_priv usbdk_priv;
-	struct winusb_device_handle_priv winusb_priv;
+struct windows_device_handle_priv {
+	struct list_head active_transfers;
+	union {
+		struct usbdk_device_handle_priv usbdk_priv;
+		struct winusb_device_handle_priv winusb_priv;
+	};
 };
 
 struct windows_transfer_priv {
 	OVERLAPPED overlapped;
 	HANDLE handle;
+	struct list_head list;
 	union {
 		struct usbdk_transfer_priv usbdk_priv;
 		struct winusb_transfer_priv winusb_priv;
 	};
 };
+
+static inline struct usbdk_device_handle_priv *get_usbdk_device_handle_priv(struct libusb_device_handle *dev_handle)
+{
+	struct windows_device_handle_priv *handle_priv = usbi_get_device_handle_priv(dev_handle);
+	return &handle_priv->usbdk_priv;
+}
+
+static inline struct winusb_device_handle_priv *get_winusb_device_handle_priv(struct libusb_device_handle *dev_handle)
+{
+	struct windows_device_handle_priv *handle_priv = usbi_get_device_handle_priv(dev_handle);
+	return &handle_priv->winusb_priv;
+}
 
 static inline OVERLAPPED *get_transfer_priv_overlapped(struct usbi_transfer *itransfer)
 {
