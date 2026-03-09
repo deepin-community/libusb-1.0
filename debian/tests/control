@@ -1,2 +1,8 @@
-Tests: stress
-Depends: build-essential, libusb-1.0-0-dev, pkg-config
+Tests: testsuite
+Depends: build-essential,
+         libudev-dev,
+         libumockdev-dev,
+         libusb-1.0-0-dev,
+         pkg-config,
+         umockdev
+Restrictions: allow-stderr

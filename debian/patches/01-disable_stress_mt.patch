@@ -1,0 +1,31 @@
+Description: Disable the stress_mt test
+ This tests assume that some USB devices are available, which can't be
+ guaranteed on the buildds. Just disable the test are suggested on the upstream
+ bug tracker.
+Author: Aurelien Jarno <aurel32@debian.org>
+Bug: https://github.com/libusb/libusb/issues/1373
+Forwarded: not-needed
+Last-Update: 2023-12-10
+
+--- libusb-1.0-1.0.27~rc1.orig/tests/Makefile.am
++++ libusb-1.0-1.0.27~rc1/tests/Makefile.am
+@@ -21,7 +21,7 @@ stress_mt_LDFLAGS += ${AM_LDFLAGS} -s PR
+ endif
+ 
+ noinst_HEADERS = libusb_testlib.h
+-noinst_PROGRAMS = stress stress_mt set_option init_context
++noinst_PROGRAMS = stress set_option init_context
+ if OS_DARWIN
+ noinst_PROGRAMS += macos
+ endif
+--- libusb-1.0-1.0.27~rc1.orig/tests/Makefile.in
++++ libusb-1.0-1.0.27~rc1/tests/Makefile.in
+@@ -95,7 +95,7 @@
+ # We use the PROXY_TO_PTHREAD Emscripten's feature to move the main app to a separate thread
+ # where it can block safely.
+ @OS_EMSCRIPTEN_TRUE@am__append_1 = ${AM_LDFLAGS} -s PROXY_TO_PTHREAD -s EXIT_RUNTIME
+-noinst_PROGRAMS = stress$(EXEEXT) stress_mt$(EXEEXT) \
++noinst_PROGRAMS = stress$(EXEEXT) \
+ 	set_option$(EXEEXT) init_context$(EXEEXT) $(am__EXEEXT_1) \
+ 	$(am__EXEEXT_2)
+ @OS_DARWIN_TRUE@am__append_2 = macos
