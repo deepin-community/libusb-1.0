@@ -1,3 +1,10 @@
+libusb-1.0 (2:1.0.28-1deepin1) unstable; urgency=medium
+
+  * Fix CVE-2026-23679, CVE-2026-47104: descriptor parsing issues
+    (upstream commit bc0886173ea15b8cc9bba2918f58a97a7f185231)
+
+ -- deepin-ci-robot <packages@deepin.org>  Thu, 04 Jun 2026 09:00:00 +0800
+
 libusb-1.0 (2:1.0.28-1) unstable; urgency=medium
 
   * New upstream release
